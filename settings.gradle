@@ -1,0 +1,4 @@
+include ':FileDownloader'
+include ':cacheLib'
+include ':app'
+rootProject.name = "FileCache"
