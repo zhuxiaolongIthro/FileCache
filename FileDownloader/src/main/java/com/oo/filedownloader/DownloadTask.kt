@@ -2,10 +2,7 @@ package com.oo.filedownloader
 
 import android.os.Build
 import android.util.Log
-import java.io.BufferedInputStream
-import java.io.BufferedReader
-import java.io.File
-import java.io.InputStreamReader
+import java.io.*
 import java.lang.StringBuilder
 import java.net.URL
 import javax.net.ssl.HttpsURLConnection
@@ -51,32 +48,76 @@ class DownloadTask(val url:String,val targetFile: File) :Runnable{
             }else{
                 totalSize = buildConn.contentLength.toLong()
             }
-            val ops = targetFile.outputStream()
 
-
-            var byteArray = ByteArray(1024*100)
-            var end=0
-            listener?.started()
-            while (!cancelFlag&&bis.read(byteArray).also { end=it }!=-1){
-                //写入文件
-                ops.write(byteArray,0,end)
-                //回调进度
-                listener?.process((targetFile.length()/totalSize).toInt())
-            }
-            //写入完成
-            ops.flush()
-            ops.close()
-            bis.close()
-            if (cancelFlag) {
-                listener?.canceled()
-            }else{
+            if (totalSize == targetFile.length()) {
                 listener?.finished()
+                return
+            }
+            if(targetFile.length()>0){//断点续传
+                randomWriteFile(bis, totalSize, buildConn)
+            }else{//新下载
+                writeToEmptyFile(bis, totalSize, buildConn)
             }
         }else{
             val bufferedReader = BufferedReader(InputStreamReader(buildConn.errorStream))
             Log.e(TAG, "run: ${bufferedReader.readText()}")
         }
 
+    }
+
+    private fun randomWriteFile(
+        bis: BufferedInputStream,
+        totalSize: Long,
+        buildConn: HttpsURLConnection
+    ) {
+        val randomAccessFile = RandomAccessFile(targetFile, "rwd")
+        var byteArray = ByteArray(1024 * 10000)
+        var end = 0
+        listener?.started()
+        while (!cancelFlag && bis.read(byteArray).also { end = it } != -1) {
+            //写入文件
+            randomAccessFile.write(byteArray, 0, end)
+            //回调进度
+            listener?.process((100 * targetFile.length() / totalSize).toInt())
+        }
+        //写入完成
+        randomAccessFile.close()
+        bis.close()
+        buildConn.disconnect()
+        if (cancelFlag) {//取消 很可能会继续下载
+            // TODO: 2020/2/17 是否可以服用connect
+            listener?.canceled()
+        } else {
+            listener?.finished()
+        }
+    }
+
+    private fun writeToEmptyFile(
+        bis: BufferedInputStream,
+        totalSize: Long,
+        buildConn: HttpsURLConnection
+    ) {
+        val ops = targetFile.outputStream()
+        var byteArray = ByteArray(1024 * 1000*100)
+        var end = 0
+        listener?.started()
+        while (!cancelFlag && bis.read(byteArray).also { end = it } != -1) {
+            //写入文件
+            ops.write(byteArray, 0, end)
+            //回调进度
+            listener?.process((100 * targetFile.length() / totalSize).toInt())
+        }
+        //写入完成
+        ops.flush()
+        ops.close()
+        bis.close()
+        buildConn.disconnect()
+        if (cancelFlag) {//取消 很可能会继续下载
+            // TODO: 2020/2/17 是否可以服用connect
+            listener?.canceled()
+        } else {
+            listener?.finished()
+        }
     }
 
     private fun buildConn(urlStr:String,offset:Long,l:Long):HttpsURLConnection{

@@ -35,6 +35,8 @@ class FileDownloadManager(val context: Context) {
      * */
     val singlePool = Executors.newSingleThreadExecutor()
 
+    val taskMap = HashMap<String,DownloadTask>()
+
 
     private fun compressKey(url:String):String{
         return url
@@ -44,18 +46,14 @@ class FileDownloadManager(val context: Context) {
         return split.last()
     }
     fun download(url:String,callback:DownloadCallback){
-        val compressKey = compressKey(url)
+        val compressKey = splitFileName(url)
+
         when (diskCache.checkCacheState(compressKey)) {
-            CacheState.CACHE_STATE_FINISH -> {//有缓存
-                // TODO: 2020/2/16 直接使用缓存文件
-            }
-            CacheState.CACHE_STATE_UNCOMPLET->{
-                // TODO: 2020/2/16 缓存文件不完整
-            }
+            CacheState.CACHE_STATE_UNCOMPLET,
             CacheState.CACHE_STATE_NOTEXISIST->{
-                // TODO: 2020/2/16 缓存文件不存在
                 val cachedFile = diskCache.getCachedFile(compressKey)
                 val downloadTask = DownloadTask(url, cachedFile)
+                taskMap.put(compressKey,downloadTask)
                 downloadTask.listener = object :DownloadTask.Listener{
                     override fun started() {
                         Log.i(TAG, "started: ")
@@ -63,19 +61,34 @@ class FileDownloadManager(val context: Context) {
 
                     override fun canceled() {
                         Log.i(TAG, "canceled: ")
+                        if (taskMap.contains(compressKey)) {
+                            taskMap.remove(compressKey)
+                        }
                     }
 
                     override fun finished() {
                         Log.i(TAG, "finished: ")
+                        if (taskMap.contains(compressKey)) {
+                            taskMap.remove(compressKey)
+                        }
+                        callback.downloadSuccess()
                     }
 
                     override fun process(process: Int) {
                         Log.i(TAG, "process: $process")
+                        callback.downloadProcess(process)
+
                     }
 
                 }
                 singlePool.submit(downloadTask)
             }
+        }
+    }
+    fun cancelDownload(url: String){
+        val splitFileName = splitFileName(url)
+        if (taskMap.containsKey(splitFileName)) {
+            taskMap.get(splitFileName)?.cancel()
         }
     }
 
@@ -84,6 +97,7 @@ class FileDownloadManager(val context: Context) {
     interface DownloadCallback{
         fun downloadSuccess()
         fun downloadFailed()
+        fun downloadProcess(process:Int)
     }
 
 

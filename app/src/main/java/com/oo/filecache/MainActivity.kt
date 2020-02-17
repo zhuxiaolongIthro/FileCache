@@ -14,11 +14,12 @@ import com.oo.filedownloader.FileDownloadManager
 class MainActivity : AppCompatActivity(), FileDownloadManager.DownloadCallback {
 
     
-    val fileDownloadManager = FileDownloadManager(this)
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        val fileDownloadManager = FileDownloadManager(this)
         findViewById<Button>(R.id.download_image).setOnClickListener {
             //下载图片  1、根据url获取文件名 或者 直接采用url 获取图片文件的唯一标识 用于缓存
             //如果有缓存文件 返回缓存路径
@@ -33,11 +34,11 @@ class MainActivity : AppCompatActivity(), FileDownloadManager.DownloadCallback {
                 return@setOnClickListener
             }
 
-            fileDownloadManager.download("http://img2.imgtn.bdimg.com/it/u=24025528,2806576048&fm=26&gp=0.jpg",this)
+            fileDownloadManager.download("https://media.w3.org/2010/05/sintel/trailer.mp4",this)
 
         }
-        findViewById<Button>(R.id.download_file).setOnClickListener {
-
+        findViewById<Button>(R.id.download_cancel).setOnClickListener {
+            fileDownloadManager.cancelDownload("https://media.w3.org/2010/05/sintel/trailer.mp4")
         }
     }
 
@@ -46,5 +47,9 @@ class MainActivity : AppCompatActivity(), FileDownloadManager.DownloadCallback {
     }
 
     override fun downloadFailed() {
+    }
+
+    override fun downloadProcess(process: Int) {
+
     }
 }

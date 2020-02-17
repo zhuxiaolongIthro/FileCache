@@ -12,8 +12,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"/>
     <Button
-        android:id="@+id/download_file"
-        android:text="下载文件"
+        android:id="@+id/download_cancel"
+        android:text="取消下载"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"/>
 
